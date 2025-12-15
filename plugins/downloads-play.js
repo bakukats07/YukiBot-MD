@@ -82,7 +82,7 @@ const handler = async (m, { conn, text, usedPrefix, command }) => {
       )
 
       fs.unlinkSync(audioPath)
-      await m.react("✔️")
+      await m.react("🎄")
     }
 
     // ───── VIDEO ─────
