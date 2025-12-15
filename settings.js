@@ -29,7 +29,7 @@ global.yukiJadibts = true
 
 //*─ׄ─ׅ─ׄ─⭒─ׄ─ׅ─ׄ─⭒─ׄ─ׅ─ׄ─⭒─ׄ─ׅ─ׄ─⭒─ׄ─ׅ─ׄ─⭒─ׄ─ׅ─ׄ─*
 
-global.botname = "⫷ 𝙈𝙪𝙞𝙘𝙝𝙞𝙧𝙤 𝙗𝙤𝙩 ⫸"
+global.botname = "⫷𓍢ִ໋🌫️ 𝙈𝙪𝙞𝙘𝙝𝙞𝙧𝙤 𝙗𝙤𝙩𓍢ִ໋🩵 ⫸"
 global.textbot = "𝙈𝙪𝙞𝙘𝙝𝙞𝙧𝙤 𝙗𝙤𝙩, mᥲძᥱ ᥕі𝗍һ ᑲᥡ 스카이클라우드"
 global.dev = "© ⍴᥆ᥕᥱrᥱძ ᑲᥡ 스카이클라우드"
 global.author = "© mᥲძᥱ ᥕі𝗍һ ᑲᥡ 스카이클라우드"
