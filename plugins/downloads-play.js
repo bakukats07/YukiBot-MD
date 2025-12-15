@@ -1,11 +1,14 @@
-import fetch from "node-fetch" // se conserva (no se elimina nada)
+import fetch from "node-fetch" // se conserva aunque ya no se use
 import yts from 'yt-search'
 import { spawn } from 'child_process'
 import fs from 'fs'
 import path from 'path'
 
-const TMP = './tmp'
+/* ===== CONFIGURACIÓN TERMUX ===== */
+const YTDLP = '/data/data/com.termux/files/usr/bin/yt-dlp'
+const TMP = path.join(process.cwd(), 'tmp')
 
+/* ===== HANDLER PRINCIPAL ===== */
 const handler = async (m, { conn, text, usedPrefix, command }) => {
 try {
 if (!text.trim()) return conn.reply(m.chat, `❀ Por favor, ingresa el nombre de la música a descargar.`, m)
@@ -31,11 +34,13 @@ const info = `「✦」Descargando *<${title}>*\n\n> ❑ Canal » *${author.name
 const thumb = (await conn.getFile(thumbnail)).data
 await conn.sendMessage(m.chat, { image: thumb, caption: info }, { quoted: m })
 
-const safeTitle = title
-.replace(/[^\w\s]/gi, '')
-.slice(0, 60)
-if (!fs.existsSync(TMP)) fs.mkdirSync(TMP)
+if (!fs.existsSync(TMP)) fs.mkdirSync(TMP, { recursive: true })
 
+const safeTitle = title
+.replace(/[\\/:*?"<>|]/g, '')
+.slice(0, 60)
+
+/* ===== AUDIO ===== */
 if (['play', 'yta', 'ytmp3', 'playaudio'].includes(command)) {
 const audioPath = await getAud(url, safeTitle)
 m.reply(`> ❀ *Audio procesado con yt-dlp*`)
@@ -47,10 +52,17 @@ m.chat,
 fs.unlinkSync(audioPath)
 await m.react('✔️')
 
+/* ===== VIDEO ===== */
 } else if (['play2', 'ytv', 'ytmp4', 'mp4'].includes(command)) {
 const videoPath = await getVid(url, safeTitle)
 m.reply(`> ❀ *Vídeo procesado con yt-dlp*`)
-await conn.sendFile(m.chat, fs.readFileSync(videoPath), `${safeTitle}.mp4`, `> ❀ ${title}`, m)
+await conn.sendFile(
+m.chat,
+fs.readFileSync(videoPath),
+`${safeTitle}.mp4`,
+`> ❀ ${title}`,
+m
+)
 fs.unlinkSync(videoPath)
 await m.react('✔️')
 }
@@ -66,8 +78,63 @@ m
 )
 }}
 
+/* ===== REGISTRO ===== */
 handler.command = handler.help = ['play', 'yta', 'ytmp3', 'play2', 'ytv', 'ytmp4', 'playaudio', 'mp4']
 handler.tags = ['descargas']
 handler.group = true
 
 export default handler
+
+/* ===== FUNCIONES ===== */
+
+/* 🎵 AUDIO */
+function getAud(url, title) {
+return new Promise((resolve, reject) => {
+const out = path.join(TMP, `${title}.mp3`)
+
+const yt = spawn(YTDLP, [
+'-x',
+'--audio-format', 'mp3',
+'-o', out,
+url
+])
+
+yt.on('error', err => reject(err))
+
+yt.on('close', code => {
+if (code !== 0) return reject('⚠ No se pudo obtener el audio.')
+if (!fs.existsSync(out)) return reject('⚠ Archivo de audio no generado.')
+resolve(out)
+})
+})
+}
+
+/* 🎬 VIDEO */
+function getVid(url, title) {
+return new Promise((resolve, reject) => {
+const out = path.join(TMP, `${title}.mp4`)
+
+const yt = spawn(YTDLP, [
+'-f', 'mp4',
+'-o', out,
+url
+])
+
+yt.on('error', err => reject(err))
+
+yt.on('close', code => {
+if (code !== 0) return reject('⚠ No se pudo obtener el video.')
+if (!fs.existsSync(out)) return reject('⚠ Archivo de video no generado.')
+resolve(out)
+})
+})
+}
+
+/* 👁️ VISTAS */
+function formatViews(views) {
+if (views === undefined) return "No disponible"
+if (views >= 1_000_000_000) return `${(views / 1_000_000_000).toFixed(1)}B (${views.toLocaleString()})`
+if (views >= 1_000_000) return `${(views / 1_000_000).toFixed(1)}M (${views.toLocaleString()})`
+if (views >= 1_000) return `${(views / 1_000).toFixed(1)}k (${views.toLocaleString()})`
+return views.toString()
+}
