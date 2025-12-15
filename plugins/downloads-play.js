@@ -31,7 +31,9 @@ const info = `「✦」Descargando *<${title}>*\n\n> ❑ Canal » *${author.name
 const thumb = (await conn.getFile(thumbnail)).data
 await conn.sendMessage(m.chat, { image: thumb, caption: info }, { quoted: m })
 
-const safeTitle = title.replace(/[^\w\s]/gi, '')
+const safeTitle = title
+.replace(/[^\w\s]/gi, '')
+.slice(0, 60)
 if (!fs.existsSync(TMP)) fs.mkdirSync(TMP)
 
 if (['play', 'yta', 'ytmp3', 'playaudio'].includes(command)) {
