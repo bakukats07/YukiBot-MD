@@ -1,113 +1,93 @@
-import fs from "fs"
-import path from "path"
-import yts from "yt-search"
-import { spawn } from "child_process"
-
-const YTDLP_PATH = "/data/data/com.termux/files/usr/bin/yt-dlp"
-const TMP_DIR = "./tmp"
-
-if (!fs.existsSync(TMP_DIR)) fs.mkdirSync(TMP_DIR)
+import fetch from "node-fetch"
+import yts from 'yt-search'
+import ytdl from 'yt-dlp'
 
 const handler = async (m, { conn, text, usedPrefix, command }) => {
   try {
-    if (!text?.trim()) {
-      return conn.reply(m.chat, "❀ Ingresa el nombre o link del audio.", m)
-    }
-
-    await m.react("🕒")
-
-    const search = await yts(text)
-    const video = search.videos?.[0]
-    if (!video) throw "ꕥ No se encontraron resultados."
-
-    const {
-      title,
-      thumbnail,
-      timestamp,
-      views,
-      ago,
-      url,
-      author,
-      seconds
-    } = video
-
-    if (seconds > 1800)
-      throw "⚠ El video supera el límite de duración (30 minutos)."
-
-    const info = `「✦」Descargando *<${title}>*
-
-> ❑ Canal » *${author.name}*
-> ♡ Vistas » *${views.toLocaleString()}*
-> ✧︎ Duración » *${timestamp}*
-> ☁︎ Publicado » *${ago}*
-> ➪ Link » ${url}`
-
+    if (!text.trim()) return conn.reply(m.chat, `❀ Por favor, ingresa el nombre de la música a descargar.`, m)
+    await m.react('🕒')
+    
+    // Buscar video de YouTube a partir del texto proporcionado
+    const videoMatch = text.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/|live\/v\/))([a-zA-Z0-9_-]{11})/)
+    const query = videoMatch ? 'https://youtu.be/' + videoMatch[1] : text
+    const search = await yts(query)
+    const result = videoMatch ? search.videos.find(v => v.videoId === videoMatch[1]) || search.all[0] : search.all[0]
+    
+    if (!result) throw 'ꕥ No se encontraron resultados.'
+    
+    const { title, thumbnail, timestamp, views, ago, url, author, seconds } = result
+    if (seconds > 1800) throw '⚠ El video supera el límite de duración (30 minutos).'
+    
+    const vistas = formatViews(views)
+    const info = `「✦」Descargando *<${title}>*\n\n> ❑ Canal » *${author.name}*\n> ♡ Vistas » *${vistas}*\n> ✧︎ Duración » *${timestamp}*\n> ☁︎ Publicado » *${ago}*\n> ➪ Link » ${url}`
     const thumb = (await conn.getFile(thumbnail)).data
-    await conn.sendMessage(
-      m.chat,
-      { image: thumb, caption: info },
-      { quoted: m }
-    )
-
-    if (["play", "yta", "ytmp3", "playaudio"].includes(command)) {
-      const audioPath = await downloadAudio(url, title)
-      if (!fs.existsSync(audioPath))
-        throw "⚠ No se pudo obtener el audio."
-
-      await conn.sendMessage(
-        m.chat,
-        {
-          audio: fs.readFileSync(audioPath),
-          mimetype: "audio/mpeg",
-          fileName: `${title}.mp3`
-        },
-        { quoted: m }
-      )
-
-      fs.unlinkSync(audioPath)
-      await m.react("✔️")
+    await conn.sendMessage(m.chat, { image: thumb, caption: info }, { quoted: m })
+    
+    // Obtener y procesar audio o video
+    if (['play', 'yta', 'ytmp3', 'playaudio'].includes(command)) {
+      const audio = await getAudio(url)
+      if (!audio?.url) throw '⚠ No se pudo obtener el audio.'
+      m.reply(`> ❀ *Audio procesado. Servidor:* \`${audio.api}\``)
+      await conn.sendMessage(m.chat, { audio: { url: audio.url }, fileName: `${title}.mp3`, mimetype: 'audio/mpeg' }, { quoted: m })
+      await m.react('✔️')
+    } else if (['play2', 'ytv', 'ytmp4', 'mp4'].includes(command)) {
+      const video = await getVideo(url)
+      if (!video?.url) throw '⚠ No se pudo obtener el video.'
+      m.reply(`> ❀ *Vídeo procesado. Servidor:* \`${video.api}\``)
+      await conn.sendFile(m.chat, video.url, `${title}.mp4`, `> ❀ ${title}`, m)
+      await m.react('✔️')
     }
-
   } catch (e) {
-    await m.react("✖️")
-    return conn.reply(
-      m.chat,
-      typeof e === "string"
-        ? e
-        : `⚠ Se produjo un error.\nUsa *${usedPrefix}report* para informarlo.`,
-      m
-    )
+    await m.react('✖️')
+    return conn.reply(m.chat, typeof e === 'string' ? e : '⚠︎ Se ha producido un problema.\n> Usa *' + usedPrefix + 'report* para informarlo.\n\n' + e.message, m)
   }
 }
 
-handler.command = ["play", "yta", "ytmp3", "playaudio"]
-handler.tags = ["descargas"]
+handler.command = handler.help = ['play', 'yta', 'ytmp3', 'play2', 'ytv', 'ytmp4', 'playaudio', 'mp4']
+handler.tags = ['descargas']
 handler.group = true
 
 export default handler
 
-// ===============================
-// DESCARGA REAL (RÁPIDA Y ESTABLE)
-// ===============================
-function downloadAudio(videoUrl, title) {
-  return new Promise((resolve, reject) => {
-    const safe = title.replace(/[\\/:*?"<>|]/g, "")
-    const output = path.join(TMP_DIR, `${safe}.mp3`)
+// Función para obtener el audio con yt-dlp (optimizada)
+async function getAudio(url) {
+  try {
+    const info = await ytdl.getInfo(url)
+    const formats = ytdl.chooseFormat(info.formats, { quality: 'highestaudio', filter: 'audioonly' })
+    
+    // Verificamos si se encontró el enlace para el audio
+    if (formats.url) {
+      return { url: formats.url, api: 'yt-dlp' }
+    }
+    return null
+  } catch (err) {
+    console.error('Error en yt-dlp al obtener el audio:', err)
+    return null
+  }
+}
 
-    const yt = spawn(YTDLP_PATH, [
-      "-x",
-      "--audio-format", "mp3",
-      "--audio-quality", "5",
-      "--no-playlist",
-      "-o", output,
-      videoUrl
-    ])
+// Función para obtener el video con yt-dlp (optimizada)
+async function getVideo(url) {
+  try {
+    const info = await ytdl.getInfo(url)
+    const formats = ytdl.chooseFormat(info.formats, { quality: 'highestvideo' })
+    
+    // Verificamos si se encontró el enlace para el video
+    if (formats.url) {
+      return { url: formats.url, api: 'yt-dlp' }
+    }
+    return null
+  } catch (err) {
+    console.error('Error en yt-dlp al obtener el video:', err)
+    return null
+  }
+}
 
-    yt.on("error", reject)
-
-    yt.on("close", code => {
-      if (code !== 0) return reject("Error en yt-dlp")
-      resolve(output)
-    })
-  })
+// Formatear las vistas en formato legible
+function formatViews(views) {
+  if (views === undefined) return "No disponible"
+  if (views >= 1_000_000_000) return `${(views / 1_000_000_000).toFixed(1)}B (${views.toLocaleString()})`
+  if (views >= 1_000_000) return `${(views / 1_000_000).toFixed(1)}M (${views.toLocaleString()})`
+  if (views >= 1_000) return `${(views / 1_000).toFixed(1)}k (${views.toLocaleString()})`
+  return views.toString()
 }
