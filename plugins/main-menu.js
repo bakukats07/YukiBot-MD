@@ -431,6 +431,8 @@ let txt = `̮   ̮   ̮   ̮   ̮   ̮   ̮   ̮   ̮   ̮   ̮   ̮   ̮   ̮  
 > ⸙ Descargar un video Xvideos. 
 ✦ *#xnxx •#xnxxdl* + [Link]
 > ⸙ Descargar un video Xnxx.
+✦ *#hentaikarla °#karla
+> ⸙ Reclamar tu femboy waifu (por tiempo limitado)
 ╰ׅ͜─֟͜─͜─ٞ͜─͜─๊͜─͜─๋͜─⃔═̶፝֟͜═̶⃔─๋͜─͜─͜─๊͜─ٞ͜─͜─֟͜┈ࠢ͜╯ׅ`.trim()
 await conn.sendMessage(m.chat, { 
 text: txt,
