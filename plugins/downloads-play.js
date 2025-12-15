@@ -17,7 +17,7 @@ const handler = async (m, { conn, text, usedPrefix, command }) => {
       )
     }
 
-    await m.react("🕒")
+    await m.react("🛷")
 
     const videoMatch = text.match(
       /(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/|live\/|v\/))([a-zA-Z0-9_-]{11})/
@@ -101,11 +101,11 @@ const handler = async (m, { conn, text, usedPrefix, command }) => {
       )
 
       fs.unlinkSync(videoPath)
-      await m.react("✔️")
+      await m.react("🎅")
     }
 
   } catch (e) {
-    await m.react("✖️")
+    await m.react("😔")
     return conn.reply(
       m.chat,
       typeof e === "string"
