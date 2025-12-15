@@ -1,6 +1,6 @@
 import fetch from "node-fetch" // se conserva (no se elimina nada)
 import yts from 'yt-search'
-import { exec } from 'child_process'
+import { spawn } from 'child_process'
 import fs from 'fs'
 import path from 'path'
 
