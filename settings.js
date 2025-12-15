@@ -36,7 +36,7 @@ global.author = "© mᥲძᥱ ᥕі𝗍һ ᑲᥡ ⁱᵃᵐ|𝔇ĕ𝐬†𝓻⊙
 global.etiqueta = "ⁱᵃᵐ|𝔇ĕ𝐬†𝓻⊙γ𒆜"
 global.currency = "¥enes"
 global.banner = "https://raw.githubusercontent.com/bakukats07/Mis-Imagenes/main/c6c24dc91a5befb5e6a58e23163ce5f4.jpg"
-global.icono = "https://raw.githubusercontent.com/The-King-Destroy/Adiciones/main/Contenido/1742678797993.jpeg"
+global.icono = "https://raw.githubusercontent.com/bakukats07/Mis-Imagenes/main/f9d15a813993931a4e484f5176da4348.jpg"
 global.catalogo = fs.readFileSync('./lib/catalogo.jpg')
 
 //*─ׄ─ׅ─ׄ─⭒─ׄ─ׅ─ׄ─⭒─ׄ─ׅ─ׄ─⭒─ׄ─ׅ─ׄ─⭒─ׄ─ׅ─ׄ─⭒─ׄ─ׅ─ׄ─*
