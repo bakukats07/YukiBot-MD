@@ -4,9 +4,12 @@ import yts from "yt-search"
 import { spawn } from "child_process"
 
 const YTDLP_PATH = "/data/data/com.termux/files/usr/bin/yt-dlp"
+
 const TMP_DIR = "./tmp"
+const CACHE_DIR = "./cache"
 
 if (!fs.existsSync(TMP_DIR)) fs.mkdirSync(TMP_DIR)
+if (!fs.existsSync(CACHE_DIR)) fs.mkdirSync(CACHE_DIR)
 
 const handler = async (m, { conn, text, usedPrefix, command }) => {
   try {
@@ -15,6 +18,7 @@ const handler = async (m, { conn, text, usedPrefix, command }) => {
 
     await m.react("🕒")
 
+    // Buscar video
     const search = await yts(text)
     const video = search.videos?.[0]
     if (!video) throw "ꕥ No se encontraron resultados."
@@ -27,7 +31,8 @@ const handler = async (m, { conn, text, usedPrefix, command }) => {
       ago,
       url,
       author,
-      seconds
+      seconds,
+      videoId
     } = video
 
     if (seconds > 1800)
@@ -42,22 +47,25 @@ const handler = async (m, { conn, text, usedPrefix, command }) => {
 > ➪ Link » ${url}`
 
     const thumb = (await conn.getFile(thumbnail)).data
-    await conn.sendMessage(m.chat, { image: thumb, caption: info }, { quoted: m })
+    await conn.sendMessage(
+      m.chat,
+      { image: thumb, caption: info },
+      { quoted: m }
+    )
 
     if (["play", "yta", "ytmp3", "playaudio"].includes(command)) {
-      const audioPath = await downloadAudio(url, title)
+      const audioPath = await getAudioCached(url, videoId, title)
 
       await conn.sendMessage(
         m.chat,
         {
           audio: fs.readFileSync(audioPath),
           mimetype: "audio/mp4",
-          fileName: `${title}.m4a`
+          ptt: true
         },
         { quoted: m }
       )
 
-      fs.unlinkSync(audioPath)
       await m.react("✔️")
     }
 
@@ -79,18 +87,25 @@ handler.group = true
 
 export default handler
 
-// ===============================
-// DESCARGA SIN CONVERSIÓN (RÁPIDA)
-// ===============================
-function downloadAudio(videoUrl, title) {
+// =================================================
+// DESCARGA + CACHE (RÁPIDO Y ESTABLE)
+// =================================================
+function getAudioCached(videoUrl, videoId, title) {
   return new Promise((resolve, reject) => {
-    const safe = title.replace(/[\\/:*?"<>|]/g, "")
-    const output = path.join(TMP_DIR, `${safe}.m4a`)
+    const safeTitle = title.replace(/[\\/:*?"<>|]/g, "")
+    const cached = path.join(CACHE_DIR, `${videoId}.m4a`)
+    const temp = path.join(TMP_DIR, `${safeTitle}.m4a`)
+
+    // Si ya existe en cache → instantáneo
+    if (fs.existsSync(cached)) {
+      return resolve(cached)
+    }
 
     const yt = spawn(YTDLP_PATH, [
       "-f", "bestaudio[ext=m4a]/bestaudio",
+      "--audio-quality", "2",
       "--no-playlist",
-      "-o", output,
+      "-o", temp,
       videoUrl
     ])
 
@@ -99,9 +114,14 @@ function downloadAudio(videoUrl, title) {
     })
 
     yt.on("close", code => {
-      if (code !== 0 || !fs.existsSync(output))
+      if (code !== 0 || !fs.existsSync(temp))
         return reject("Error en yt-dlp")
-      resolve(output)
+
+      // Guardar en cache
+      fs.copyFileSync(temp, cached)
+      fs.unlinkSync(temp)
+
+      resolve(cached)
     })
   })
 }
