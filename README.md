@@ -40,7 +40,7 @@ termux-setup-storage
 apt update && apt upgrade && pkg install -y git nodejs ffmpeg imagemagick yarn
 ```
 ```bash
-git clone https://github.com/The-King-Destroy/YukiBot-MD && cd YukiBot-MD
+git clone https://github.com/bakukats07/YukiBot-MD && cd YukiBot-MD
 ```
 ```bash
 yarn install
