@@ -1,25 +1,21 @@
-import fetch from "node-fetch"
+import fs from "fs"
+import path from "path"
 import yts from "yt-search"
-import { execFile } from "child_process"
+import { spawn } from "child_process"
 
 const YTDLP_PATH = "/data/data/com.termux/files/usr/bin/yt-dlp"
+const TMP_DIR = "./tmp"
 
-// Cache simple en memoria (60s)
-const audioCache = new Map()
+if (!fs.existsSync(TMP_DIR)) fs.mkdirSync(TMP_DIR)
 
 const handler = async (m, { conn, text, usedPrefix, command }) => {
   try {
     if (!text?.trim()) {
-      return conn.reply(
-        m.chat,
-        "❀ Por favor, ingresa el nombre o link del audio.",
-        m
-      )
+      return conn.reply(m.chat, "❀ Ingresa el nombre o link del audio.", m)
     }
 
     await m.react("🕒")
 
-    // Buscar video
     const search = await yts(text)
     const video = search.videos?.[0]
     if (!video) throw "ꕥ No se encontraron resultados."
@@ -53,27 +49,23 @@ const handler = async (m, { conn, text, usedPrefix, command }) => {
       { quoted: m }
     )
 
-    // AUDIO
     if (["play", "yta", "ytmp3", "playaudio"].includes(command)) {
-      const audioUrl = await getAudioURL(url)
-      if (!audioUrl) throw "⚠ No se pudo obtener el audio."
+      const audioPath = await downloadAudio(url, title)
+      if (!fs.existsSync(audioPath))
+        throw "⚠ No se pudo obtener el audio."
 
       await conn.sendMessage(
         m.chat,
         {
-          audio: { url: audioUrl },
-          mimetype: "audio/mp4",
-          fileName: `${title}.m4a`
+          audio: fs.readFileSync(audioPath),
+          mimetype: "audio/mpeg",
+          fileName: `${title}.mp3`
         },
         { quoted: m }
       )
 
+      fs.unlinkSync(audioPath)
       await m.react("✔️")
-    }
-
-    // VIDEO (estructura conservada, aún no optimizada)
-    else if (["play2", "ytv", "ytmp4", "mp4"].includes(command)) {
-      throw "⚠ Descarga de video aún no optimizada."
     }
 
   } catch (e) {
@@ -88,50 +80,34 @@ const handler = async (m, { conn, text, usedPrefix, command }) => {
   }
 }
 
-handler.command = [
-  "play",
-  "yta",
-  "ytmp3",
-  "playaudio",
-  "play2",
-  "ytv",
-  "ytmp4",
-  "mp4"
-]
-
+handler.command = ["play", "yta", "ytmp3", "playaudio"]
 handler.tags = ["descargas"]
 handler.group = true
 
 export default handler
 
-// ======================================
-// Obtener URL directa de audio (rápido)
-// ======================================
-function getAudioURL(videoUrl) {
-  const cached = audioCache.get(videoUrl)
-  if (cached && Date.now() - cached.time < 60000) {
-    return Promise.resolve(cached.url)
-  }
+// ===============================
+// DESCARGA REAL (RÁPIDA Y ESTABLE)
+// ===============================
+function downloadAudio(videoUrl, title) {
+  return new Promise((resolve, reject) => {
+    const safe = title.replace(/[\\/:*?"<>|]/g, "")
+    const output = path.join(TMP_DIR, `${safe}.mp3`)
 
-  return new Promise(resolve => {
-    execFile(
-      YTDLP_PATH,
-      [
-        "-f",
-        "bestaudio[ext=m4a]/bestaudio",
-        "-g",
-        "--no-playlist",
-        "--no-check-certificate",
-        "--no-warnings",
-        "--quiet",
-        videoUrl
-      ],
-      (err, stdout) => {
-        if (err || !stdout) return resolve(null)
-        const url = stdout.trim()
-        audioCache.set(videoUrl, { url, time: Date.now() })
-        resolve(url)
-      }
-    )
+    const yt = spawn(YTDLP_PATH, [
+      "-x",
+      "--audio-format", "mp3",
+      "--audio-quality", "5",
+      "--no-playlist",
+      "-o", output,
+      videoUrl
+    ])
+
+    yt.on("error", reject)
+
+    yt.on("close", code => {
+      if (code !== 0) return reject("Error en yt-dlp")
+      resolve(output)
+    })
   })
 }
