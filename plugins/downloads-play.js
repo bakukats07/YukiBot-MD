@@ -61,7 +61,7 @@ const handler = async (m, { conn, text, usedPrefix, command }) => {
         {
           audio: fs.readFileSync(audioPath),
           mimetype: "audio/mp4",
-          ptt: true
+          ptt: false //nota de voz
         },
         { quoted: m }
       )
