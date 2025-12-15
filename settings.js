@@ -30,10 +30,10 @@ global.yukiJadibts = true
 //*─ׄ─ׅ─ׄ─⭒─ׄ─ׅ─ׄ─⭒─ׄ─ׅ─ׄ─⭒─ׄ─ׅ─ׄ─⭒─ׄ─ׅ─ׄ─⭒─ׄ─ׅ─ׄ─*
 
 global.botname = "⫷ 𝙈𝙪𝙞𝙘𝙝𝙞𝙧𝙤 𝙗𝙤𝙩 ⫸"
-global.textbot = "𝙈𝙪𝙞𝙘𝙝𝙞𝙧𝙤 𝙗𝙤𝙩, mᥲძᥱ ᥕі𝗍һ ᑲᥡ skycloud"
-global.dev = "© ⍴᥆ᥕᥱrᥱძ ᑲᥡ ⁱᵃᵐ|𝔇ĕ𝐬†𝓻⊙γ𒆜"
-global.author = "© mᥲძᥱ ᥕі𝗍һ ᑲᥡ ⁱᵃᵐ|𝔇ĕ𝐬†𝓻⊙γ𒆜"
-global.etiqueta = "ⁱᵃᵐ|𝔇ĕ𝐬†𝓻⊙γ𒆜"
+global.textbot = "𝙈𝙪𝙞𝙘𝙝𝙞𝙧𝙤 𝙗𝙤𝙩, mᥲძᥱ ᥕі𝗍һ ᑲᥡ 스카이클라우드"
+global.dev = "© ⍴᥆ᥕᥱrᥱძ ᑲᥡ 스카이클라우드"
+global.author = "© mᥲძᥱ ᥕі𝗍һ ᑲᥡ 스카이클라우드"
+global.etiqueta = "스카이클라우드"
 global.currency = "¥enes"
 global.banner = "https://raw.githubusercontent.com/bakukats07/Mis-Imagenes/main/c6c24dc91a5befb5e6a58e23163ce5f4.jpg"
 global.icono = "https://raw.githubusercontent.com/bakukats07/Mis-Imagenes/main/f9d15a813993931a4e484f5176da4348.jpg"
