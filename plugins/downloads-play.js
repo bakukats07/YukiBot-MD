@@ -95,7 +95,7 @@ const handler = async (m, { conn, text, usedPrefix, command }) => {
           video: fs.readFileSync(videoPath),
           mimetype: "video/mp4",
           fileName: `${title}.mp4`,
-          caption: `> ❀ ${title}`
+          caption: `> 一緒🎁 ¡Felicidades! tu petición fue aceptada, aquí tienes ^^ ¡🎅Feliz navidad!🦌`
         },
         { quoted: m }
       )
