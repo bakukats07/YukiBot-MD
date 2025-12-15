@@ -89,24 +89,27 @@ export default handler
 
 /* 🎵 AUDIO */
 function getAud(url, title) {
-return new Promise((resolve, reject) => {
-const out = path.join(TMP, `${title}.mp3`)
+  return new Promise((resolve, reject) => {
+    const base = path.join(TMP, title)
+    const out = `${base}.mp3`
 
-const yt = spawn(YTDLP, [
-'-x',
-'--audio-format', 'mp3',
-'-o', out,
-url
-])
+    const yt = spawn(YTDLP, [
+      '-x',
+      '--audio-format', 'mp3',
+      '--audio-quality', '0',
+      '--no-playlist',
+      '-o', `${base}.%(ext)s`,
+      url
+    ])
 
-yt.on('error', err => reject(err))
+    yt.on('error', err => reject(err))
 
-yt.on('close', code => {
-if (code !== 0) return reject('⚠ No se pudo obtener el audio.')
-if (!fs.existsSync(out)) return reject('⚠ Archivo de audio no generado.')
-resolve(out)
-})
-})
+    yt.on('close', code => {
+      if (code !== 0) return reject('⚠ No se pudo obtener el audio.')
+      if (!fs.existsSync(out)) return reject('⚠ Archivo de audio no generado.')
+      resolve(out)
+    })
+  })
 }
 
 /* 🎬 VIDEO */
