@@ -35,7 +35,7 @@ global.dev = "© ⍴᥆ᥕᥱrᥱძ ᑲᥡ 스카이클라우드"
 global.author = "© mᥲძᥱ ᥕі𝗍һ ᑲᥡ 스카이클라우드"
 global.etiqueta = "스카이클라우드"
 global.currency = "¥enes"
-global.banner = "https://raw.githubusercontent.com/bakukats07/Mis-Imagenes/main/c6c24dc91a5befb5e6a58e23163ce5f4.jpg"
+global.banner = "https://raw.githubusercontent.com/bakukats07/Mis-Imagenes/main/0045bf7a2ea3563ca0a91a14170f95ee.jpg"
 global.icono = "https://raw.githubusercontent.com/bakukats07/Mis-Imagenes/main/f9d15a813993931a4e484f5176da4348.jpg"
 global.catalogo = fs.readFileSync('./lib/catalogo.jpg')
 
