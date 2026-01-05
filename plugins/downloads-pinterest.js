@@ -1,14 +1,23 @@
 import fs from 'fs'
 import axios from 'axios'
 import { exec } from 'child_process'
-import path from 'path'
 
 let handler = async (m, { conn, text, usedPrefix }) => {
   if (!text)
-    return m.reply(`❀ Uso correcto:\n${usedPrefix}pin <link de Pinterest>`)
+    return m.reply(`ꕥ Uso correcto:\n${usedPrefix}pin <link de Pinterest>`)
 
-  if (!/pinterest\.|pin\.it/i.test(text))
-    return m.reply('❌ El enlace no es válido de Pinterest.')
+  let url = text.trim()
+
+  // Resolver pin.it
+  if (/pin\.it/i.test(url)) {
+    try {
+      const res = await axios.get(url, { maxRedirects: 0, validateStatus: s => s === 301 || s === 302 })
+      url = res.headers.location
+    } catch {}
+  }
+
+  if (!/pinterest\.com/i.test(url))
+    return m.reply('❌ Enlace de Pinterest no válido.')
 
   const raw = `./tmp/pin_raw_${Date.now()}.mp4`
   const fixed = `./tmp/pin_fixed_${Date.now()}.mp4`
@@ -16,10 +25,10 @@ let handler = async (m, { conn, text, usedPrefix }) => {
   try {
     await m.react('🕒')
 
-    const api = `https://pinterestvideodownloader.com/api/video?url=${encodeURIComponent(text)}`
+    const api = `https://pinterestvideodownloader.com/api/video?url=${encodeURIComponent(url)}`
     const { data } = await axios.get(api, { timeout: 20000 })
 
-    if (!data?.video) throw 'Video no disponible'
+    if (!data?.video) throw 'No hay video'
 
     const stream = await axios.get(data.video, { responseType: 'stream' })
     await new Promise((res, rej) => {
@@ -29,9 +38,10 @@ let handler = async (m, { conn, text, usedPrefix }) => {
       w.on('error', rej)
     })
 
+    // Reparación real
     await new Promise((res, rej) => {
       exec(
-        `ffmpeg -y -i "${raw}" -c:v libx264 -pix_fmt yuv420p -movflags +faststart "${fixed}"`,
+        `ffmpeg -y -i "${raw}" -map 0:v:0 -map 0:a? -c:v libx264 -pix_fmt yuv420p -movflags +faststart "${fixed}"`,
         e => e ? rej(e) : res()
       )
     })
@@ -41,7 +51,7 @@ let handler = async (m, { conn, text, usedPrefix }) => {
       {
         video: fs.readFileSync(fixed),
         mimetype: 'video/mp4',
-        caption: '❀ Video de Pinterest reparado correctamente.'
+        caption: 'ꕥ Pinterest Video'
       },
       { quoted: m }
     )
@@ -51,14 +61,14 @@ let handler = async (m, { conn, text, usedPrefix }) => {
   } catch (e) {
     console.error(e)
     await m.react('✖️')
-    m.reply('⚠️ El video no está disponible o está dañado.')
+    m.reply('⚠️ El video no está disponible o Pinterest lo bloqueó.')
   } finally {
     fs.existsSync(raw) && fs.unlinkSync(raw)
     fs.existsSync(fixed) && fs.unlinkSync(fixed)
   }
 }
 
-handler.command = /^pin$/i
+handler.command = ['pin']
 handler.tags = ['download']
 handler.help = ['pin <link>']
 handler.group = true
