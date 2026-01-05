@@ -1,46 +1,62 @@
 import axios from 'axios'
 import cheerio from 'cheerio'
 
-let handler = async (m, { conn, text, args, usedPrefix }) => {
+let handler = async (m, { conn, text, usedPrefix }) => {
 
-  // Si el usuario escribe solo /pin
   if (!text) {
     return m.reply(
       `❀ Pinterest ❀\n\n` +
-      `✦ Uso correcto:\n` +
+      `✦ Uso:\n` +
       `» ${usedPrefix}pin <texto>\n` +
       `» ${usedPrefix}pin <link de Pinterest>\n\n` +
-      `✦ Ejemplos:\n` +
-      `» ${usedPrefix}pin anime aesthetic\n` +
-      `» ${usedPrefix}pin https://www.pinterest.com/pin/xxxx`
+      `✦ Ejemplo:\n` +
+      `» ${usedPrefix}pin anime aesthetic`
     )
   }
 
   try {
     await m.react('🕒')
 
-    // ───── SI ES LINK ─────
+    // ───── LINK DE PINTEREST ─────
     if (/https?:\/\/(www\.)?(pinterest\.|pin\.it)/i.test(text)) {
 
       const media = await getPinMedia(text)
+
       if (!media || !media.url) {
-        return m.reply('✖ No se pudo obtener el contenido del enlace.')
+        return m.reply('✖ El contenido no está disponible.')
       }
 
-      // DESCARGA EN BUFFER (CLAVE PARA EVITAR VIDEOS ROTOS)
-      const buffer = await downloadBuffer(media.url)
-
+      // ─── VIDEO ───
       if (media.type === 'video') {
-        await conn.sendMessage(
-          m.chat,
-          {
-            video: buffer,
-            mimetype: 'video/mp4',
-            caption: media.title || 'Pinterest Video'
-          },
-          { quoted: m }
-        )
-      } else {
+        try {
+          const buffer = await downloadBuffer(media.url)
+
+          // validación mínima real
+          if (!buffer || buffer.length < 10000) {
+            throw new Error('Video incompleto')
+          }
+
+          await conn.sendMessage(
+            m.chat,
+            {
+              video: buffer,
+              mimetype: 'video/mp4',
+              caption: media.title || 'Pinterest Video'
+            },
+            { quoted: m }
+          )
+
+        } catch (err) {
+          return m.reply(
+            '⚠ El video no está disponible porque el archivo está dañado o incompleto.'
+          )
+        }
+      }
+
+      // ─── IMAGEN ───
+      if (media.type === 'image') {
+        const buffer = await downloadBuffer(media.url)
+
         await conn.sendMessage(
           m.chat,
           {
@@ -55,7 +71,7 @@ let handler = async (m, { conn, text, args, usedPrefix }) => {
       return
     }
 
-    // ───── SI ES BÚSQUEDA ─────
+    // ───── BÚSQUEDA ─────
     const results = await searchPinterest(text)
 
     if (!results.length) {
@@ -85,7 +101,7 @@ let handler = async (m, { conn, text, args, usedPrefix }) => {
     console.error(err)
     await m.react('✖️')
     m.reply(
-      `⚠︎ Ocurrió un problema.\n` +
+      `⚠ Ocurrió un error interno.\n` +
       `> Usa *${usedPrefix}report* para informarlo.`
     )
   }
@@ -99,7 +115,7 @@ handler.group = true
 export default handler
 
 /*━━━━━━━━━━━━━━━━━━━━━━━
-  FUNCIONES INTERNAS
+  FUNCIONES
 ━━━━━━━━━━━━━━━━━━━━━━━*/
 
 async function downloadBuffer(url) {
