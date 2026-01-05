@@ -1,182 +1,96 @@
+import fs from 'fs'
+import path from 'path'
 import axios from 'axios'
-import cheerio from 'cheerio'
+import { exec } from 'child_process'
 
-let handler = async (m, { conn, text, usedPrefix }) => {
+const TMP_DIR = './tmp'
+if (!fs.existsSync(TMP_DIR)) fs.mkdirSync(TMP_DIR)
 
-  if (!text) {
-    return m.reply(
-      `❀ Pinterest ❀\n\n` +
-      `✦ Uso:\n` +
-      `» ${usedPrefix}pin <texto>\n` +
-      `» ${usedPrefix}pin <link de Pinterest>\n\n` +
-      `✦ Ejemplo:\n` +
-      `» ${usedPrefix}pin anime aesthetic`
-    )
-  }
+export default {
+  command: ['pin'],
+  tags: ['downloader'],
+  help: ['pin <url de pinterest>'],
 
-  try {
-    await m.react('🕒')
+  async handler(m, { conn, text }) {
+    if (!text)
+      return conn.sendMessage(
+        m.chat,
+        { text: '❌ Usa el comando así:\n/pin <link de Pinterest>' },
+        { quoted: m }
+      )
 
-    // ───── LINK DE PINTEREST ─────
-    if (/https?:\/\/(www\.)?(pinterest\.|pin\.it)/i.test(text)) {
+    if (!/pinterest\./i.test(text))
+      return conn.sendMessage(
+        m.chat,
+        { text: '❌ El enlace no parece ser de Pinterest.' },
+        { quoted: m }
+      )
 
-      const media = await getPinMedia(text)
+    const rawPath = path.join(TMP_DIR, `pin_raw_${Date.now()}.mp4`)
+    const fixedPath = path.join(TMP_DIR, `pin_fixed_${Date.now()}.mp4`)
 
-      if (!media || !media.url) {
-        return m.reply('✖ El contenido no está disponible.')
-      }
+    try {
+      await conn.sendMessage(
+        m.chat,
+        { text: '⏳ Descargando video de Pinterest…' },
+        { quoted: m }
+      )
 
-      // ─── VIDEO ───
-      if (media.type === 'video') {
-        try {
-          const buffer = await downloadBuffer(media.url)
+      // ===== DESCARGA =====
+      const api = `https://pinterestvideodownloader.com/api/video?url=${encodeURIComponent(text)}`
+      const { data } = await axios.get(api, { timeout: 20000 })
 
-          // validación mínima real
-          if (!buffer || buffer.length < 10000) {
-            throw new Error('Video incompleto')
-          }
+      if (!data?.video)
+        throw 'No se pudo obtener el video desde Pinterest.'
 
-          await conn.sendMessage(
-            m.chat,
-            {
-              video: buffer,
-              mimetype: 'video/mp4',
-              caption: media.title || 'Pinterest Video'
-            },
-            { quoted: m }
-          )
+      const videoStream = await axios.get(data.video, {
+        responseType: 'stream',
+        timeout: 20000
+      })
 
-        } catch (err) {
-          return m.reply(
-            '⚠ El video no está disponible porque el archivo está dañado o incompleto.'
-          )
-        }
-      }
+      await new Promise((resolve, reject) => {
+        const w = fs.createWriteStream(rawPath)
+        videoStream.data.pipe(w)
+        w.on('finish', resolve)
+        w.on('error', reject)
+      })
 
-      // ─── IMAGEN ───
-      if (media.type === 'image') {
-        const buffer = await downloadBuffer(media.url)
-
-        await conn.sendMessage(
-          m.chat,
-          {
-            image: buffer,
-            caption: media.title || 'Pinterest Image'
-          },
-          { quoted: m }
+      // ===== FFmpeg (OBLIGATORIO) =====
+      await new Promise((resolve, reject) => {
+        exec(
+          `ffmpeg -y -i "${rawPath}" -c:v libx264 -pix_fmt yuv420p -movflags +faststart "${fixedPath}"`,
+          err => (err ? reject(err) : resolve())
         )
-      }
+      })
 
-      await m.react('✔️')
-      return
-    }
+      if (!fs.existsSync(fixedPath) || fs.statSync(fixedPath).size < 10000)
+        throw 'El video resultante sigue dañado.'
 
-    // ───── BÚSQUEDA ─────
-    const results = await searchPinterest(text)
+      // ===== ENVÍO =====
+      await conn.sendMessage(
+        m.chat,
+        {
+          video: fs.readFileSync(fixedPath),
+          mimetype: 'video/mp4',
+          caption: '✅ Video de Pinterest reparado y compatible.'
+        },
+        { quoted: m }
+      )
 
-    if (!results.length) {
-      return m.reply(`ꕥ No se encontraron resultados para "${text}".`)
-    }
-
-    const medias = results.slice(0, 10).map(url => ({
-      type: 'image',
-      data: { url }
-    }))
-
-    await conn.sendSylphy(
-      m.chat,
-      medias,
-      {
-        caption:
-          `❀ Pinterest ❀\n\n` +
-          `✧ Búsqueda » "${text}"\n` +
-          `✐ Resultados » ${medias.length}`,
-        quoted: m
-      }
-    )
-
-    await m.react('✔️')
-
-  } catch (err) {
-    console.error(err)
-    await m.react('✖️')
-    m.reply(
-      `⚠ Ocurrió un error interno.\n` +
-      `> Usa *${usedPrefix}report* para informarlo.`
-    )
-  }
-}
-
-handler.help = ['pin', 'pinterest']
-handler.command = ['pin', 'pinterest']
-handler.tags = ['download']
-handler.group = true
-
-export default handler
-
-/*━━━━━━━━━━━━━━━━━━━━━━━
-  FUNCIONES
-━━━━━━━━━━━━━━━━━━━━━━━*/
-
-async function downloadBuffer(url) {
-  const res = await axios.get(url, {
-    responseType: 'arraybuffer',
-    headers: { 'User-Agent': 'Mozilla/5.0' }
-  })
-  return res.data
-}
-
-async function getPinMedia(url) {
-  const res = await axios.get(url, {
-    headers: { 'User-Agent': 'Mozilla/5.0' }
-  })
-
-  const $ = cheerio.load(res.data)
-
-  // ── VIDEO ──
-  const videoScript = $('script[data-test-id="video-snippet"]')
-  if (videoScript.length) {
-    const json = JSON.parse(videoScript.text())
-    return {
-      type: 'video',
-      url: json.contentUrl,
-      title: json.name
+    } catch (e) {
+      console.error(e)
+      await conn.sendMessage(
+        m.chat,
+        {
+          text:
+            '❌ El video no está disponible.\n' +
+            '⚠️ Falló la descarga o el archivo estaba dañado.'
+        },
+        { quoted: m }
+      )
+    } finally {
+      if (fs.existsSync(rawPath)) fs.unlinkSync(rawPath)
+      if (fs.existsSync(fixedPath)) fs.unlinkSync(fixedPath)
     }
   }
-
-  // ── IMAGEN ──
-  const relay = $("script[data-relay-response='true']").first()
-  if (relay.length) {
-    const json = JSON.parse(relay.text())
-    const data = json.response?.data?.v3GetPinQuery?.data
-
-    return {
-      type: 'image',
-      url: data?.imageLargeUrl || data?.images?.orig?.url,
-      title: data?.title
-    }
-  }
-
-  return null
-}
-
-async function searchPinterest(query) {
-  const link =
-    `https://id.pinterest.com/resource/BaseSearchResource/get/?source_url=` +
-    `%2Fsearch%2Fpins%2F%3Fq%3D${encodeURIComponent(query)}` +
-    `&data=${encodeURIComponent(JSON.stringify({
-      options: { query, scope: 'pins' }
-    }))}`
-
-  const res = await axios.get(link, {
-    headers: {
-      'accept': 'application/json',
-      'user-agent': 'Mozilla/5.0',
-      'x-requested-with': 'XMLHttpRequest'
-    }
-  })
-
-  return (res.data?.resource_response?.data?.results || [])
-    .map(v => v.images?.orig?.url)
-    .filter(Boolean)
 }
